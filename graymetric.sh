@@ -16,36 +16,50 @@
 ## Dependencies: Bash, cURL, Netcat, jq
 
 
+# Would like to know who and where I am.
 SCRIPTPATH=$(dirname "$0")
 SCRIPTNAME=$(basename "$0")
 
+# See if there's somebody knocking on stdin, if yes, let 'em in.
 if read -t 0; then
 
 	STIN=$(cat -)
 
 fi
+# Yeah, cat content always works!
 
 
+# You can put your token here. Just omit -t|-T then.
 gl_token=""
 gl_pass="token"
 
+# Put your Graylog API URL here, then omit -u
 gl_api_url="http://127.0.0.1:9000/api/"
 
+# Custom cURL options. The -k ignores SSL certificate checks
+COPTS="-k"
+
+# If you put your metrics list here, you don't need to put it
+# on the command line. Remember -m to merge if you want to or
+# you persist merge metrics below.
 gl_metric_list="${SCRIPTPATH}/graylog_metric_examples.txt"
 
 gl_merge_metrics="FALSE"
 
+# This is the output for Graylog's raw tcp input, but you can
+# send it elsewhere. It is just plain JSON over tcp. If FALSE
+# all will be put out on stdout ... or use -o on command line.
 gl_out_raw="FALSE"
 gl_out_host="127.0.0.1"
 gl_out_port="5565"
 
+# The following things can be also pre-set here, you adjust
+# them to your needs. You could even add your own stuff.
 gl_source_field="$(hostname -s)"
 gl_label_field=""
 
-COPTS="-k"
 
-
-
+# Guess it's time now to see who queued up in the options queue
 while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
 
   case "$OPTION" in
@@ -110,9 +124,9 @@ while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
 	echo
 	echo "       cat metric_list.txt | ./${SCRIPTNAME} -o \"127.0.0.1:5565\" -m -f \"/home/user/additional_metrics.txt\""
 	echo
-	echo "       ./${SCRIPTNAME} -f \"my_gl_metrics.txt\" -L \"prod_pipelines\""
+	echo "       ./${SCRIPTNAME} -f \"my_gl_metrics.txt\" -L \"prod_pipelines\" -t <TOKEN>"
 	echo
-	echo "       ./${SCRIPTNAME} < graylog_metric_collection.txt"
+	echo "       ./${SCRIPTNAME} -t "'${gl_token}'" < graylog_metric_collection.txt"
 	echo
 	echo "       echo \"org.graylog2.journal.entries-uncommitted\" | ./${SCRIPTNAME} -T ~/mytoken.txt -o \"192.168.1.1:5565\""
 	echo
@@ -156,7 +170,7 @@ while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
 
 done
 
-
+# Show your papers
 if [[ -z "${gl_token}" ]]; then
 
 	echo "No Graylog API access token provided (see command line option -t or -T)"
@@ -166,7 +180,8 @@ if [[ -z "${gl_token}" ]]; then
 fi
 
 
-
+# Get the metrics together and merge them if asked for. Clean them up, distill them, look
+# for duplicates and put them in order. Tidy, isn't it?
 gl_metric_items="$({
 
 if [[ "${STIN}" ]]; then
