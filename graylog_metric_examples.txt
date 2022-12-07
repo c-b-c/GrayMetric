@@ -1,0 +1,12 @@
+# buffer
+org.graylog2.buffers.OutputBuffer.incomingMessages
+
+# journal
+org.graylog2.journal.size
+org.graylog2.journal.entries-uncommitted
+org.graylog2.journal.utilization-ratio
+
+# output
+org.graylog2.outputs.ElasticSearchOutput.failures
+org.graylog2.outputs.ElasticSearchOutput.writes
+
