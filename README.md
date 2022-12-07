@@ -10,8 +10,9 @@ output through curl to Elasticsearch or other tools like MongoDB CLI to have it 
 
 
       
-   Usage:
-      
+  Usage:
+  
+  
       graymetric.sh -t <TOKEN> | -u <URL> -m -f <PATH_TO_METRIC_LIST> -o <GRAYLOG_RAW_INPUT:PORT>
 
        Accepts a list of Graylog metrics (one per line) as input from stdin
@@ -31,8 +32,8 @@ output through curl to Elasticsearch or other tools like MongoDB CLI to have it 
 
        cat metric_list.txt | ./graymetric.sh -o "127.0.0.1:5565" -m -f "/home/user/additional_metrics.txt"
 
-       ./graymetric.sh -f "my_gl_metrics.txt" -L "prod_pipelines"
+       ./graymetric.sh -f "my_gl_metrics.txt" -L "prod_pipelines" -t <TOKEN>
 
-       ./graymetric.sh < graylog_metric_collection.txt
+       ./graymetric.sh -t ${gl_token} < graylog_metric_collection.txt
 
        echo "org.graylog2.journal.entries-uncommitted" | ./graymetric.sh -T ~/mytoken.txt -o "192.168.1.1:5565"
