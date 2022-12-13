@@ -3,6 +3,8 @@
 ##
 ##  GrayMetric
 ##
+##  Version 1
+##
 ##  Bash approach to fetch metrics from Graylog, reformat and restyle them preserving the JSON format.
 ##  The output of GrayMetric can be sent directly to a Graylog raw/tcp input to be then visually prepared
 ##  in a dashboard, further processed by streams and piplelines or alternatively used in any other
@@ -13,12 +15,45 @@
 ##  License: Apache License 2.0
 ##
 
-## Dependencies: Bash, cURL, Netcat, jq
+## Dependencies: Bash, cURL, Nmap-Netcat, jq
 
 
 # Would like to know who and where I am.
 SCRIPTPATH=$(dirname "$0")
 SCRIPTNAME=$(basename "$0")
+SCRIPTVERSION="1.01"
+
+
+# Before we continue, let's check the command dependencies of this script
+# If the required binaries are not present in your system. I'm afraid I've
+# to quit here!
+
+dependencies=( curl jq ncat )
+
+for dependency in "${dependencies[@]}"
+
+do
+
+	command -v "$dependency" >/dev/null 2>&1 || { echo >&2 "\"$dependency\" is required, but not installed. I'm quitting."; exit 1; }
+
+done
+
+
+# Depending on your netcat version, it might be necessary to add more options here or change them
+# Non nmap-netcat implementations seem not to close the connection  after sending, so it looks like
+# it hangs. 
+#
+# Read here for an explanation and solution:
+#
+# https://serverfault.com/questions/512722/how-to-automatically-close-netcat-connection-after-data-is-sent
+
+if ! [[ "$(ncat --help | grep -is 'nmap')" ]]; then
+
+	NCOPTS="-w 1"
+
+fi
+
+
 
 # See if there's somebody knocking on stdin, if yes, let 'em in.
 if read -t 0; then
@@ -90,47 +125,47 @@ while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
 	gl_metric_list="$OPTARG"
 	;;
     h ) # Show some useful help
-	echo
-	echo "========================================="
-	echo
-	echo "  GrayMetric - Fetching Graylog Metrics"
-	echo
-	echo "========================================="
-	echo
-	echo "(c) 2022 Christian B. Caldarone"
-	echo
-	echo
-	echo "License: Apache License 2.0"
-	echo
-	echo
-	echo "Usage:"
-	echo
-	echo "      ${SCRIPTNAME} -t <TOKEN> | -u <URL> -m -f <PATH_TO_METRIC_LIST> -o <GRAYLOG_RAW_INPUT:PORT>"
-	echo
-	echo "       Accepts a list of Graylog metrics (one per line) as input from stdin"
-	echo
-	echo "       -t  <TOKEN>  is the Graylog token, generated for a specific user (required)"
-	echo "       -T  <PATH_TO_TOKEN>  alternatively reads the Graylog token from a file"
-	echo "       -u  <URL>  is the Graylog API URL, if omitted, http://127.0.0.1:9000/api/ will be used"
-	echo "       -f  <PATH_TO_METRIC_LIST>  a text file to read Graylog metric names from, one per line"
-	echo "       -o  <GRAYLOG_RAW_INPUT:PORT>  hostname/ip and port of the Graylog raw input to send the metrics"
- 	echo "       -m  if the metrics list is provided through stdin AND the -f option is used to provide a file"
- 	echo "           as well, stdin will replace the information provided by the file as default. Now With the -m"
-	echo "           option, you can merge them together"
-	echo "       -L  <TEXT> creates a field 'label' with the text provided. If omitted the field is not created"
-	echo "       -h  Shows this help"
-	echo
-	echo "       Examples:"
-	echo
-	echo "       cat metric_list.txt | ./${SCRIPTNAME} -o \"127.0.0.1:5565\" -m -f \"/home/user/additional_metrics.txt\""
-	echo
-	echo "       ./${SCRIPTNAME} -f \"my_gl_metrics.txt\" -L \"prod_pipelines\" -t <TOKEN>"
-	echo
-	echo "       ./${SCRIPTNAME} -t "'${gl_token}'" < graylog_metric_collection.txt"
-	echo
-	echo "       echo \"org.graylog2.journal.entries-uncommitted\" | ./${SCRIPTNAME} -T ~/mytoken.txt -o \"192.168.1.1:5565\""
-	echo
-	echo
+	echo \
+"
+=========================================
+
+  GrayMetric - Fetching Graylog Metrics
+
+  Version: ${SCRIPTVERSION}
+
+  License: Apache License 2.0
+
+=========================================
+
+ (c) 2022 Christian B. Caldarone
+
+
+ 	Usage:
+
+	Accepts a list of Graylog metrics (one per line) as input from stdin
+
+	-t  <TOKEN>  is the Graylog token, generated for a specific user (required)
+        -T  <PATH_TO_TOKEN>  alternatively reads the Graylog token from a file
+        -u  <URL>  is the Graylog API URL, if omitted, http://127.0.0.1:9000/api/ will be used
+        -f  <PATH_TO_METRIC_LIST>  a text file to read Graylog metric names from, one per line
+        -o  <GRAYLOG_RAW_INPUT:PORT>  hostname/ip and port of the Graylog raw input to send the metrics
+        -m  if the metrics list is provided through stdin AND the -f option is used to provide a file
+            as well, stdin will replace the information provided by the file as default. Now With the -m
+            option, you can merge them together
+        -L  <TEXT> creates a field 'label' with the text provided. If omitted the field is not created
+        -h  Shows this help
+
+	Examples:
+
+	cat metric_list.txt | ./${SCRIPTNAME} -o \"127.0.0.1:5565\" -m -f \"/home/user/additional_metrics.txt\"
+
+	./${SCRIPTNAME} -f \"my_gl_metrics.txt\" -L \"prod_pipelines\" -t <TOKEN> -u \"http://10.1.1.1:9000/api/\"
+
+	./${SCRIPTNAME} -t \"${gl_token}\" < graylog_metric_collection.txt
+
+        echo \"org.graylog2.journal.entries-uncommitted\" | ./${SCRIPTNAME} -T ~/mytoken.txt -o \"192.168.1.1:5565\"
+
+"
 	exit
 	;;
 
@@ -161,6 +196,13 @@ while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
 	read -p "Press enter to get rich"
 	exit
         ;;
+
+   : ) # Handle missing options argument
+        echo "There's something missing!"
+	echo "Check where you need to provide an option argument"
+        exit
+        ;;
+
 
    \? ) # Handle invalid options
 	echo "Invalid option. Better fix it."
@@ -210,22 +252,37 @@ for item in ${MAPFILE[@]}
 )
 
 
-RESP=$(curl "${COPTS}" -s -X GET -u "${gl_token}:${gl_pass}" -H 'Accept: application/json; charset=utf-8' -H 'X-Requested-By: GrayMon' "${gl_api_url}system")
+# Check if someone was too sloppy minding the slash. 
+
+if ! [[ "${gl_api_url: -1}" == "/" ]]; then
+
+	gl_api_url="${gl_api_url}/"
+
+fi
+
+
+# First: Get some Graylog node and cluster info off the api, this is used to enrich the meta data
+
+RESP=$(curl "${COPTS}" -s -X GET -u "${gl_token}:${gl_pass}" -H 'Accept: application/json; charset=utf-8' -H 'X-Requested-By: GrayMetric' "${gl_api_url}system")
 
 NODE_ID=$(jq -r '.node_id' <<< ${RESP})
 
 CLUSTER_ID=$(jq -r '.cluster_id' <<< ${RESP})
 
 
+# Second: Get all the metrics from the shopping list off the shelf and put them into the caddy. 
 
-RESP=$(curl "${COPTS}" -s -X POST -u "${gl_token}:${gl_pass}" -H 'Content-Type: application/json' -H 'Accept: application/json; charset=utf-8' -H 'X-Requested-By: GrayMon' \
+RESP=$(curl "${COPTS}" -s -X POST -u "${gl_token}:${gl_pass}" -H 'Content-Type: application/json' -H 'Accept: application/json; charset=utf-8' -H 'X-Requested-By: GrayMetrics' \
 -d "{\"metrics\":["${METRICS%?}"]}" "${gl_api_url}cluster/"${NODE_ID}"/metrics/multiple")
 
+
+# See what we've got in the caddy and put stuff on the belt. Yay! We're ready for checkout.
 
 i=0
 
 COUNT=$(jq -r '.total' <<< ${RESP})
 
+if [[ $COUNT ]]; then
 
 until [ $i = $COUNT ]
 do
@@ -258,7 +315,7 @@ if [[ "${gl_label_field}" ]]; then
 	echo "{\"label\": \"${gl_label_field}\"}"
 fi
 
-
+# Differentiate between some metrics families here. They need some individual treatment.
 
 if [ "$METRIC_TYPE" = "meter" ]; then
 
@@ -306,9 +363,11 @@ echo "{\"metric_type\": \"${METRIC_TYPE}\"}"
 
 
 
+# Finally we're done. Let's throw stuff into the trunk .
+
 if [[ "${gl_out_raw}" == "TRUE" ]]; then
 
-	echo "${json_line}" | nc "${gl_out_host}" "${gl_out_port}"
+	echo "${json_line}" | ncat "${NCOPTS}" "${gl_out_host}" "${gl_out_port}"
 
 else
 
@@ -320,3 +379,7 @@ fi
 (( i++ ))
 
 done
+
+# OK, great. We can drive home now.
+
+fi
