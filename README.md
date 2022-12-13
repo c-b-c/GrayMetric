@@ -11,29 +11,26 @@ output through curl to Elasticsearch or other tools like MongoDB CLI to have it 
 
       
   Usage:
-  
-  
-      graymetric.sh -t <TOKEN> | -u <URL> -m -f <PATH_TO_METRIC_LIST> -o <GRAYLOG_RAW_INPUT:PORT>
 
-       Accepts a list of Graylog metrics (one per line) as input from stdin
+	Accepts a list of Graylog metrics (one per line) as input from stdin
 
-       -t  <TOKEN>  is the Graylog token, generated for a specific user (required)
-       -T  <PATH_TO_TOKEN>  alternatively reads the Graylog token from a file
-       -u  <URL>  is the Graylog API URL, if omitted, http://127.0.0.1:9000/api/ will be used
-       -f  <PATH_TO_METRIC_LIST>  a text file to read Graylog metric names from, one per line
-       -o  <GRAYLOG_RAW_INPUT:PORT>  hostname/ip and port of the Graylog raw input to send the metrics
-       -m  if the metrics list is provided through stdin AND the -f option is used to provide a file
-           as well, stdin will replace the information provided by the file as default. Now With the -m
-           option, you can merge them together
-       -L  <TEXT> creates a field 'label' with the text provided. If omitted the field is not created
-       -h  Shows this help
+	-t  <TOKEN>  is the Graylog token, generated for a specific user (required)
+        -T  <PATH_TO_TOKEN>  alternatively reads the Graylog token from a file
+        -u  <URL>  is the Graylog API URL, if omitted, http://127.0.0.1:9000/api/ will be used
+        -f  <PATH_TO_METRIC_LIST>  a text file to read Graylog metric names from, one per line
+        -o  <GRAYLOG_RAW_INPUT:PORT>  hostname/ip and port of the Graylog raw input to send the metrics
+        -m  if the metrics list is provided through stdin AND the -f option is used to provide a file
+            as well, stdin will replace the information provided by the file as default. Now With the -m
+            option, you can merge them together
+        -L  <TEXT> creates a field 'label' with the text provided. If omitted the field is not created
+        -h  Shows this help
 
-       Examples:
+	Examples:
 
-       cat metric_list.txt | ./graymetric.sh -o "127.0.0.1:5565" -m -f "/home/user/additional_metrics.txt"
+	cat metric_list.txt | ./graymetric.sh -o "127.0.0.1:5565" -m -f "/home/user/additional_metrics.txt"
 
-       ./graymetric.sh -f "my_gl_metrics.txt" -L "prod_pipelines" -t <TOKEN>
+	./graymetric.sh -f "my_gl_metrics.txt" -L "prod_pipelines" -t <TOKEN> -u "http://10.1.1.1:9000/api/"
 
-       ./graymetric.sh -t ${gl_token} < graylog_metric_collection.txt
+	./graymetric.sh -t "" < graylog_metric_collection.txt
 
-       echo "org.graylog2.journal.entries-uncommitted" | ./graymetric.sh -T ~/mytoken.txt -o "192.168.1.1:5565"
+        echo "org.graylog2.journal.entries-uncommitted" | ./graymetric.sh -T ~/mytoken.txt -o "192.168.1.1:5565"
