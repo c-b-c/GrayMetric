@@ -14,7 +14,7 @@ output through curl to Elasticsearch or other tools like MongoDB CLI to have it 
 
 	Accepts a list of Graylog metrics (one per line) as input from stdin
 
-	-t  <TOKEN>  is the Graylog token, generated for a specific user (required)
+        -t  <TOKEN>  is the Graylog token, generated for a specific user (required)
         -T  <PATH_TO_TOKEN>  alternatively reads the Graylog token from a file
         -u  <URL>  is the Graylog API URL, if omitted, http://127.0.0.1:9000/api/ will be used
         -f  <PATH_TO_METRIC_LIST>  a text file to read Graylog metric names from, one per line
@@ -26,11 +26,11 @@ output through curl to Elasticsearch or other tools like MongoDB CLI to have it 
         -h  Shows this help
 
 	Examples:
+	
+        cat metric_list.txt | ./graymetric.sh -o "127.0.0.1:5565" -m -f "/home/user/additional_metrics.txt"
 
-	cat metric_list.txt | ./graymetric.sh -o "127.0.0.1:5565" -m -f "/home/user/additional_metrics.txt"
-
-	./graymetric.sh -f "my_gl_metrics.txt" -L "prod_pipelines" -t <TOKEN> -u "http://10.1.1.1:9000/api/"
-
-	./graymetric.sh -t "" < graylog_metric_collection.txt
+        ./graymetric.sh -f "my_gl_metrics.txt" -L "prod_pipelines" -t <TOKEN> -u "http://10.1.1.1:9000/api/"
+	
+        ./graymetric.sh -t "" < graylog_metric_collection.txt
 
         echo "org.graylog2.journal.entries-uncommitted" | ./graymetric.sh -T ~/mytoken.txt -o "192.168.1.1:5565"
