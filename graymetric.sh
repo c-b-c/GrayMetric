@@ -15,33 +15,41 @@
 ##  License: Apache License 2.0
 ##
 
-## Dependencies: Bash, cURL, Nmap-Netcat, jq
+## Dependencies: Bash, cURL, Nmap-Netcat, jq, dig
 
 
 # Would like to know who and where I am.
 SCRIPTPATH=$(dirname "$0")
 SCRIPTNAME=$(basename "$0")
-SCRIPTVERSION="1.01"
+SCRIPTVERSION="1.02"
+
+
+# See if there's somebody knocking on stdin, if yes, let 'em in.
+if read -t 0; then
+
+        STIN="$(cat -)"
+
+fi
 
 
 # Before we continue, let's check the command dependencies of this script
 # If the required binaries are not present in your system. I'm afraid I've
 # to quit here!
 
-dependencies=( curl jq ncat )
+dependencies=( curl jq ncat dig)
 
 for dependency in "${dependencies[@]}"
 
 do
 
-	command -v "$dependency" >/dev/null 2>&1 || { echo >&2 "\"$dependency\" is required, but not installed. I'm quitting."; exit 1; }
+	command -v "$dependency" >/dev/null 2>&1 || { echo >&2 "\"$dependency\" is required, but not installed. I'm quitting."; exit 65; }
 
 done
 
 
 # Depending on your netcat version, it might be necessary to add more options here or change them
 # Non nmap-netcat implementations seem not to close the connection  after sending, so it looks like
-# it hangs. 
+# it hangs.
 #
 # Read here for an explanation and solution:
 #
@@ -54,17 +62,9 @@ if ! [[ "$(ncat --help | grep -is 'nmap')" ]]; then
 fi
 
 
-
-# See if there's somebody knocking on stdin, if yes, let 'em in.
-if read -t 0; then
-
-	STIN=$(cat -)
-
-fi
-# Yeah, cat content always works!
-
-
-# You can put your token here. Just omit -t|-T then.
+# You can put your token here or in a file called 'token.txt'. Just omit -t|-T then. gl_token represents
+# the username and gl_pass the password. You could also put regular Graylog user credentials in, but that's
+# no recommended.
 gl_token=""
 gl_pass="token"
 
@@ -77,7 +77,8 @@ COPTS="-k"
 # If you put your metrics list here, you don't need to put it
 # on the command line. Remember -m to merge if you want to or
 # you persist merge metrics below.
-gl_metric_list="${SCRIPTPATH}/graylog_metric_examples.txt"
+# gl_metric_list="${SCRIPTPATH}/graylog_metric_examples.txt"
+gl_metric_list=""
 
 gl_merge_metrics="FALSE"
 
@@ -166,7 +167,7 @@ while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
         echo \"org.graylog2.journal.entries-uncommitted\" | ./${SCRIPTNAME} -T ~/mytoken.txt -o \"192.168.1.1:5565\"
 
 "
-	exit
+	exit 0
 	;;
 
     o ) # Output to Graylog raw input
@@ -194,19 +195,19 @@ while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
 	echo
 	echo
 	read -p "Press enter to get rich"
-	exit
+	exit 130
         ;;
 
    : ) # Handle missing options argument
         echo "There's something missing!"
 	echo "Check where you need to provide an option argument"
-        exit
+        exit 61
         ;;
 
 
    \? ) # Handle invalid options
 	echo "Invalid option. Better fix it."
-	exit
+	exit 22
 	;;
   esac
 
@@ -215,9 +216,36 @@ done
 # Show your papers
 if [[ -z "${gl_token}" ]]; then
 
-	echo "No Graylog API access token provided (see command line option -t or -T)"
-	echo "See ya."
-	exit
+	# That is also an option: Just put the token in a 'token.txt' file an store in in the script's path
+	if [[ -f "${SCRIPTPATH}/token.txt" ]]; then
+
+		gl_token="$(cat ${SCRIPTPATH}/token.txt)"
+
+	else
+
+		echo "No Graylog API access token provided (see command line option -t or -T) or put it into \"${SCRIPTPATH}/token.txt)\""
+		echo "See ya."
+		exit 126
+
+	fi
+
+fi
+
+
+if [[ "${gl_merge_metrics}" == "TRUE" ]] || ! [[ "${STIN}" ]]; then
+
+
+	if ! [[ "${gl_metric_list}" ]]; then
+
+		echo "You didn't bring any metrics with you. What are you here for?"
+		exit 61
+
+	elif ! [[ -f "${gl_metric_list}" ]]; then
+
+                echo "The metrics file \"${gl_metric_list}\" is not there. Looks like you've a hole in your pocket"
+                exit 2
+
+	fi
 
 fi
 
@@ -233,9 +261,10 @@ if [[ "${STIN}" ]]; then
 fi
 
 
-if ([[ "${gl_merge_metrics}" == "TRUE" ]] && [[ "${gl_metric_list}" ]]) || ! [[ "${STIN}" ]]; then
+if ( [[ "${gl_merge_metrics}" == "TRUE" ]] || ! [[ "${STIN}" ]] ) && [[ "${gl_metric_list}" ]]; then
 
-	echo "$(cat "${gl_metric_list}")"
+
+	cat "${gl_metric_list}"
 
 fi
 
@@ -252,7 +281,7 @@ for item in ${MAPFILE[@]}
 )
 
 
-# Check if someone was too sloppy minding the slash. 
+# Check if someone was too sloppy minding the slash.
 
 if ! [[ "${gl_api_url: -1}" == "/" ]]; then
 
@@ -265,19 +294,29 @@ fi
 
 RESP=$(curl "${COPTS}" -s -X GET -u "${gl_token}:${gl_pass}" -H 'Accept: application/json; charset=utf-8' -H 'X-Requested-By: GrayMetric' "${gl_api_url}system")
 
+if [[ -z "${RESP}" ]]; then
+
+        echo "Got nothing back fromn the Graylog API: \"${gl_api_url}\"."
+	echo "Are you sure things work? Please check URL, Token, Firewall..."
+        exit 61
+
+fi
+
+
 NODE_ID=$(jq -r '.node_id' <<< ${RESP})
+
+NODE_HOSTNAME=$(jq -r '.hostname' <<< ${RESP})
 
 CLUSTER_ID=$(jq -r '.cluster_id' <<< ${RESP})
 
 
-# Second: Get all the metrics from the shopping list off the shelf and put them into the caddy. 
+# Second: Get all the metrics from the shopping list off the shelf and put them into the caddy.
 
 RESP=$(curl "${COPTS}" -s -X POST -u "${gl_token}:${gl_pass}" -H 'Content-Type: application/json' -H 'Accept: application/json; charset=utf-8' -H 'X-Requested-By: GrayMetrics' \
 -d "{\"metrics\":["${METRICS%?}"]}" "${gl_api_url}cluster/"${NODE_ID}"/metrics/multiple")
 
 
 # See what we've got in the caddy and put stuff on the belt. Yay! We're ready for checkout.
-
 i=0
 
 COUNT=$(jq -r '.total' <<< ${RESP})
@@ -296,9 +335,9 @@ json_line=$({
 
 echo "{\"node_id\": \"${NODE_ID}\"}"
 
-echo "{\"node_hostname\": \"$(printf $(hostname))\"}"
+echo "{\"node_hostname\": \"${NODE_HOSTNAME}\"}"
 
-echo "{\"node_ip\": \"$(printf $(hostname -I))\"}"
+echo "{\"node_ip\": \"$(dig +short $NODE_HOSTNAME)\"}"
 
 echo "{\"cluster_id\": \"${CLUSTER_ID}\"}"
 
