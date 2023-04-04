@@ -21,7 +21,7 @@
 # Would like to know who and where I am.
 SCRIPTPATH=$(dirname "$0")
 SCRIPTNAME=$(basename "$0")
-SCRIPTVERSION="1.02"
+SCRIPTVERSION="1.03"
 
 
 # See if there's somebody knocking on stdin, if yes, let 'em in.
@@ -58,6 +58,10 @@ done
 if ! [[ "$(ncat --help | grep -is 'nmap')" ]]; then
 
 	NCOPTS="-w 1"
+
+else
+
+	NCOPTS=""
 
 fi
 
@@ -138,7 +142,7 @@ while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
 
 =========================================
 
- (c) 2022 Christian B. Caldarone
+ (c) 2023 Christian B. Caldarone
 
 
  	Usage:
@@ -173,7 +177,7 @@ while getopts ':u:t:T:f:ho:mc:L:x:' OPTION ; do
     o ) # Output to Graylog raw input
 	gl_out_raw="TRUE"
 
-	if [[ -z "$OPTARG" ]]; then
+	if [[ ! -z "$OPTARG" ]]; then
 
 		gl_out_host=$(cut -f 1 -d ":" <<< "$OPTARG")
 		gl_out_port=$(cut -f 2 -d ":" <<< "$OPTARG")
@@ -406,7 +410,16 @@ echo "{\"metric_type\": \"${METRIC_TYPE}\"}"
 
 if [[ "${gl_out_raw}" == "TRUE" ]]; then
 
-	echo "${json_line}" | ncat "${NCOPTS}" "${gl_out_host}" "${gl_out_port}"
+
+	if [[ ! -z "${NCOPTS}" ]]; then
+
+		echo "${json_line}" | ncat "${NCOPTS}" "${gl_out_host}" "${gl_out_port}"
+
+	else
+
+		echo "${json_line}" | ncat "${gl_out_host}" "${gl_out_port}"
+
+	fi
 
 else
 
